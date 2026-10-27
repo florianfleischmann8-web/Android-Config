@@ -1,0 +1,1210 @@
+name: Build Aura Launcher APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK vorbereiten
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" > /dev/null || true
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Komplettes Projekt erzeugen
+        run: |
+          mkdir -p app/src/main/java/com/aura/launcher
+          mkdir -p app/src/main/res/values app/src/main/res/drawable app/src/main/res/mipmap-anydpi-v26
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "AuraLauncher"
+          include(":app")
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.5.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          EOF
+
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.aura.launcher"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.aura.launcher"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              buildTypes {
+                  release { isMinifyEnabled = false }
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.MAIN" />
+                      <category android:name="android.intent.category.LAUNCHER" />
+                  </intent>
+              </queries>
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Aura"
+                  android:theme="@style/AppTheme">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTask"
+                      android:stateNotNeeded="true"
+                      android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.HOME" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:statusBarColor">@android:color/transparent</item>
+                  <item name="android:navigationBarColor">@android:color/transparent</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_launcher_background.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:aapt="http://schemas.android.com/aapt"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:pathData="M0,0h108v108h-108z">
+                  <aapt:attr name="android:fillColor">
+                      <gradient
+                          android:startX="0"
+                          android:startY="0"
+                          android:endX="108"
+                          android:endY="108"
+                          android:type="linear">
+                          <item android:offset="0" android:color="#FF6D28D9" />
+                          <item android:offset="0.55" android:color="#FFEC4899" />
+                          <item android:offset="1" android:color="#FFF59E0B" />
+                      </gradient>
+                  </aapt:attr>
+              </path>
+          </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="#FFFFFFFF" android:pathData="M38,34h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+              <path android:fillColor="#D9FFFFFF" android:pathData="M60,34h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+              <path android:fillColor="#D9FFFFFF" android:pathData="M38,56h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4h-10a4,4 0 0 1 -4,-4v-10a4,4 0 0 1 4,-4z" />
+              <path android:fillColor="#99FFFFFF" android:pathData="M65,56a9,9 0 1 1 0,18a9,9 0 1 1 0,-18z" />
+          </vector>
+          EOF
+
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_background" />
+              <foreground android:drawable="@drawable/ic_launcher_foreground" />
+              <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+          </adaptive-icon>
+          EOF
+
+          cat > app/src/main/java/com/aura/launcher/MainActivity.kt <<'EOF'
+          package com.aura.launcher
+
+          import android.animation.ValueAnimator
+          import android.app.Activity
+          import android.app.AlertDialog
+          import android.content.ComponentName
+          import android.content.Context
+          import android.content.Intent
+          import android.content.IntentFilter
+          import android.content.SharedPreferences
+          import android.content.res.ColorStateList
+          import android.graphics.*
+          import android.graphics.drawable.AdaptiveIconDrawable
+          import android.graphics.drawable.ColorDrawable
+          import android.graphics.drawable.Drawable
+          import android.graphics.drawable.GradientDrawable
+          import android.hardware.camera2.CameraCharacteristics
+          import android.hardware.camera2.CameraManager
+          import android.net.Uri
+          import android.os.*
+          import android.provider.Settings
+          import android.text.InputType
+          import android.view.*
+          import android.view.animation.DecelerateInterpolator
+          import android.view.animation.LinearInterpolator
+          import android.widget.*
+          import kotlin.math.*
+          import kotlin.reflect.KProperty
+
+          const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+          const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+          val W70 = 0xB3FFFFFF.toInt()
+          val W50 = 0x80FFFFFF.toInt()
+
+          fun argb(a: Int, rgb: Int): Int = (a shl 24) or (rgb and 0xFFFFFF)
+          fun pal(vararg v: Long) = IntArray(v.size) { v[it].toInt() }
+
+          class IntPref(private val sp: SharedPreferences, private val k: String, private val d: Int) {
+              operator fun getValue(t: Any?, p: KProperty<*>): Int = sp.getInt(k, d)
+              operator fun setValue(t: Any?, p: KProperty<*>, v: Int) { sp.edit().putInt(k, v).apply() }
+          }
+
+          class BoolPref(private val sp: SharedPreferences, private val k: String, private val d: Boolean) {
+              operator fun getValue(t: Any?, p: KProperty<*>): Boolean = sp.getBoolean(k, d)
+              operator fun setValue(t: Any?, p: KProperty<*>, v: Boolean) { sp.edit().putBoolean(k, v).apply() }
+          }
+
+          class Cfg(c: Context) {
+              val sp: SharedPreferences = c.getSharedPreferences("aura", Context.MODE_PRIVATE)
+              var size by IntPref(sp, "size", 60)
+              var radius by IntPref(sp, "radius", 34)
+              var alpha by IntPref(sp, "alpha", 100)
+              var blur by IntPref(sp, "blur", 0)
+              var cols by IntPref(sp, "cols", 4)
+              var tintColor by IntPref(sp, "tintColor", 0xFFFF4D8D.toInt())
+              var tintStrength by IntPref(sp, "tintStrength", 0)
+              var accent by IntPref(sp, "accent", 0xFF8B5CF6.toInt())
+              var bgBlur by IntPref(sp, "bgBlur", 0)
+              var dim by IntPref(sp, "dim", 25)
+              var glass by IntPref(sp, "glass", 22)
+              var labels by BoolPref(sp, "labels", true)
+              var wClock by BoolPref(sp, "wClock", true)
+              var wBattery by BoolPref(sp, "wBattery", true)
+              var wStorage by BoolPref(sp, "wStorage", true)
+              var wNote by BoolPref(sp, "wNote", true)
+              var wallpaper: String?
+                  get() = sp.getString("wp", null)
+                  set(v) { sp.edit().putString("wp", v).apply() }
+              var note: String
+                  get() = sp.getString("note", "Stay aura ✨") ?: ""
+                  set(v) { sp.edit().putString("note", v).apply() }
+          }
+
+          class AppItem(val label: String, val pkg: String, val cn: ComponentName, val icon: Drawable)
+          class Sug(val emoji: String, val title: String, val desc: String, val action: (() -> Unit)?)
+          class Tile(val e: String, val n: String, val f: (View) -> Unit)
+          class Scan(
+              val apps: Int, val sat: Float, val spread: Int, val luma: Float,
+              val score: Int, val sugs: List<Sug>
+          )
+
+          class AuroraView(c: Context) : View(c) {
+              var accent = 0xFF8B5CF6.toInt()
+              private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+              private var t = 0f
+              private val anim = ValueAnimator.ofFloat(0f, (2 * PI).toFloat()).apply {
+                  duration = 26000
+                  repeatCount = ValueAnimator.INFINITE
+                  interpolator = LinearInterpolator()
+                  addUpdateListener { t = it.animatedValue as Float; invalidate() }
+              }
+              override fun onAttachedToWindow() { super.onAttachedToWindow(); anim.start() }
+              override fun onDetachedFromWindow() { anim.cancel(); super.onDetachedFromWindow() }
+              override fun onDraw(cv: Canvas) {
+                  cv.drawColor(0xFF090912.toInt())
+                  val w = width.toFloat()
+                  val h = height.toFloat()
+                  val hsv = FloatArray(3)
+                  Color.colorToHSV(accent, hsv)
+                  for (i in 0 until 3) {
+                      val col = Color.HSVToColor(floatArrayOf((hsv[0] + i * 58f) % 360f, 0.75f, 1f))
+                      val cx = w * (0.5f + 0.40f * cos(t + i * 2.1f))
+                      val cy = h * (0.5f + 0.36f * sin(t + i * 1.7f))
+                      val r = max(w, h) * 0.7f
+                      p.shader = RadialGradient(
+                          cx, cy, r, intArrayOf(argb(0x88, col), argb(0, col)),
+                          floatArrayOf(0f, 1f), Shader.TileMode.CLAMP
+                      )
+                      cv.drawRect(0f, 0f, w, h, p)
+                  }
+              }
+          }
+
+          @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+          class MainActivity : Activity() {
+              private lateinit var cfg: Cfg
+              private lateinit var root: FrameLayout
+              private lateinit var aurora: AuroraView
+              private lateinit var wpView: ImageView
+              private lateinit var dimView: View
+              private lateinit var content: LinearLayout
+              private lateinit var widgetRow: LinearLayout
+              private lateinit var grid: GridView
+              private lateinit var bar: LinearLayout
+              private lateinit var adapter: AppAdapter
+              private lateinit var designSheet: Sheet
+              private lateinit var scanSheet: Sheet
+              private lateinit var quickSheet: Sheet
+              private val apps = ArrayList<AppItem>()
+              private val cache = HashMap<String, Bitmap>()
+              private val handler = Handler(Looper.getMainLooper())
+              private var current: Sheet? = null
+              private var topInset = 0
+              private var botInset = 0
+              private var wpBitmap: Bitmap? = null
+              private var wpUri: String? = null
+              private var lastLoad = 0L
+              private var torchOn = false
+              private var batteryTv: TextView? = null
+              private var batteryBar: ProgressBar? = null
+              private var storageTv: TextView? = null
+              private var storageSub: TextView? = null
+              private var storageBar: ProgressBar? = null
+
+              private val PAL = pal(
+                  0xFFFF4D8D, 0xFFFF6B35, 0xFFFFC145, 0xFF2EE6A6, 0xFF22D3EE,
+                  0xFF3B82F6, 0xFF8B5CF6, 0xFFE879F9, 0xFFFFFFFF
+              )
+
+              private val ticker = object : Runnable {
+                  override fun run() { updateStats(); handler.postDelayed(this, 20000) }
+              }
+
+              private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+              private fun dpf(v: Float): Float = v * resources.displayMetrics.density
+              private fun cardR(): Float = dpf(10f + cfg.radius * 0.6f)
+              private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+
+              // ───────────────────────── Lifecycle ─────────────────────────
+              override fun onCreate(b: Bundle?) {
+                  super.onCreate(b)
+                  cfg = Cfg(this)
+                  window.statusBarColor = Color.TRANSPARENT
+                  window.navigationBarColor = Color.TRANSPARENT
+                  window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                      View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+
+                  root = FrameLayout(this)
+                  aurora = AuroraView(this)
+                  root.addView(aurora, MATCH, MATCH)
+                  wpView = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; visibility = View.GONE }
+                  root.addView(wpView, MATCH, MATCH)
+                  dimView = View(this)
+                  root.addView(dimView, MATCH, MATCH)
+
+                  content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  root.addView(content, MATCH, MATCH)
+
+                  val ws = HorizontalScrollView(this).apply {
+                      isHorizontalScrollBarEnabled = false
+                      overScrollMode = View.OVER_SCROLL_NEVER
+                      clipToPadding = false
+                      setPadding(dp(16), 0, dp(6), dp(6))
+                  }
+                  widgetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                  ws.addView(widgetRow)
+                  content.addView(ws, MATCH, WRAP)
+
+                  adapter = AppAdapter()
+                  grid = GridView(this)
+                  grid.setSelector(ColorDrawable(Color.TRANSPARENT))
+                  grid.overScrollMode = View.OVER_SCROLL_NEVER
+                  grid.clipToPadding = false
+                  grid.verticalSpacing = dp(6)
+                  grid.adapter = adapter
+                  grid.setOnItemClickListener { _, _, pos, _ -> launch(apps[pos]) }
+                  grid.setOnItemLongClickListener { _, _, pos, _ ->
+                      try {
+                          startActivity(
+                              Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + apps[pos].pkg))
+                          )
+                      } catch (e: Exception) { }
+                      true
+                  }
+                  content.addView(grid, LinearLayout.LayoutParams(MATCH, 0, 1f))
+
+                  bar = LinearLayout(this).apply {
+                      gravity = Gravity.CENTER
+                      setPadding(dp(8), dp(8), dp(8), dp(8))
+                      background = GradientDrawable().apply {
+                          setColor(argb(0xAA, 0x14141E)); cornerRadius = dpf(40f); setStroke(dp(1), argb(0x44, 0xFFFFFF))
+                      }
+                  }
+                  val items = listOf(
+                      "🎨  Design" to { openDesign() },
+                      "◎  Scan" to { openScan() },
+                      "⚡  Quick" to { openQuick() }
+                  )
+                  for ((label, act) in items) {
+                      bar.addView(
+                          tv(label, 15f, Color.WHITE, true).apply {
+                              setPadding(dp(18), dp(12), dp(18), dp(12))
+                              setOnClickListener { act() }
+                          },
+                          LinearLayout.LayoutParams(WRAP, WRAP)
+                      )
+                  }
+                  root.addView(bar, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL))
+
+                  designSheet = Sheet("Design Studio")
+                  scanSheet = Sheet("Aura Scan")
+                  quickSheet = Sheet("Quick Controls")
+                  root.addView(designSheet.wrap, MATCH, MATCH)
+                  root.addView(scanSheet.wrap, MATCH, MATCH)
+                  root.addView(quickSheet.wrap, MATCH, MATCH)
+
+                  setContentView(root)
+                  root.setOnApplyWindowInsetsListener { _, ins ->
+                      topInset = ins.systemWindowInsetTop
+                      botInset = ins.systemWindowInsetBottom
+                      applyInsets()
+                      ins
+                  }
+                  applyInsets()
+                  applyAll()
+                  loadApps()
+                  root.requestApplyInsets()
+              }
+
+              override fun onResume() {
+                  super.onResume()
+                  if (SystemClock.elapsedRealtime() - lastLoad > 10000) loadApps()
+                  handler.post(ticker)
+              }
+
+              override fun onPause() {
+                  handler.removeCallbacks(ticker)
+                  super.onPause()
+              }
+
+              override fun onNewIntent(intent: Intent?) {
+                  super.onNewIntent(intent)
+                  current?.hide()
+                  grid.smoothScrollToPosition(0)
+              }
+
+              override fun onBackPressed() { current?.hide() }
+
+              override fun onActivityResult(req: Int, res: Int, data: Intent?) {
+                  super.onActivityResult(req, res, data)
+                  if (req == 42 && res == RESULT_OK) {
+                      val u = data?.data ?: return
+                      try { contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) { }
+                      cfg.wallpaper = u.toString()
+                      applyBackground()
+                  }
+              }
+
+              private fun applyInsets() {
+                  content.setPadding(0, topInset + dp(10), 0, 0)
+                  (bar.layoutParams as FrameLayout.LayoutParams).bottomMargin = botInset + dp(18)
+                  bar.requestLayout()
+                  grid.setPadding(dp(12), dp(8), dp(12), botInset + dp(110))
+              }
+
+              private fun applyAll() {
+                  applyBackground()
+                  refreshIcons()
+                  buildWidgets()
+              }
+
+              // ───────────────────────── Apps & Icons ─────────────────────────
+              private fun loadApps() {
+                  lastLoad = SystemClock.elapsedRealtime()
+                  Thread {
+                      val pm = packageManager
+                      val q = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                      val out = ArrayList<AppItem>()
+                      for (r in pm.queryIntentActivities(q, 0)) {
+                          val ai = r.activityInfo
+                          if (ai.packageName == packageName) continue
+                          out.add(
+                              AppItem(
+                                  r.loadLabel(pm).toString(), ai.packageName,
+                                  ComponentName(ai.packageName, ai.name), r.loadIcon(pm)
+                              )
+                          )
+                      }
+                      out.sortBy { it.label.lowercase() }
+                      runOnUiThread {
+                          apps.clear(); apps.addAll(out); cache.clear()
+                          adapter.notifyDataSetChanged()
+                      }
+                  }.start()
+              }
+
+              private fun launch(a: AppItem) {
+                  try {
+                      startActivity(
+                          Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(a.cn)
+                              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                      )
+                  } catch (e: Exception) { toast("App kann nicht geöffnet werden") }
+              }
+
+              private fun refreshIcons() {
+                  cache.clear()
+                  grid.setNumColumns(cfg.cols)
+                  adapter.notifyDataSetChanged()
+              }
+
+              private fun colorFilter(): ColorFilter? {
+                  val s = cfg.tintStrength / 100f
+                  if (s <= 0f) return null
+                  val c = cfg.tintColor
+                  val k = 1.5f
+                  val r = Color.red(c) / 255f * k
+                  val g = Color.green(c) / 255f * k
+                  val b = Color.blue(c) / 255f * k
+                  val lr = 0.2126f; val lg = 0.7152f; val lb = 0.0722f
+                  val id = floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f)
+                  val tg = floatArrayOf(
+                      lr * r, lg * r, lb * r, 0f, 0f,
+                      lr * g, lg * g, lb * g, 0f, 0f,
+                      lr * b, lg * b, lb * b, 0f, 0f,
+                      0f, 0f, 0f, 1f, 0f
+                  )
+                  val m = FloatArray(20) { id[it] * (1 - s) + tg[it] * s }
+                  return ColorMatrixColorFilter(ColorMatrix(m))
+              }
+
+              private fun render(src: Drawable, s: Int): Bitmap {
+                  val bmp = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+                  val cv = Canvas(bmp)
+                  val cf = colorFilter()
+                  val d = (src.constantState?.newDrawable() ?: src).mutate()
+                  if (d is AdaptiveIconDrawable) {
+                      val pad = s / 4
+                      for (l in listOf(d.background, d.foreground)) {
+                          if (l == null) continue
+                          l.setBounds(-pad, -pad, s + pad, s + pad)
+                          l.setColorFilter(cf)
+                          l.draw(cv)
+                      }
+                  } else {
+                      cv.drawColor(0xFF1C1C28.toInt())
+                      val p = (s * 0.14f).toInt()
+                      d.setBounds(p, p, s - p, s - p)
+                      d.setColorFilter(cf)
+                      d.draw(cv)
+                  }
+                  val rad = s * cfg.radius / 100f
+                  val mask = Paint(Paint.ANTI_ALIAS_FLAG)
+                  mask.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+                  cv.drawRoundRect(RectF(0f, 0f, s.toFloat(), s.toFloat()), rad, rad, mask)
+                  return bmp
+              }
+
+              inner class AppAdapter : BaseAdapter() {
+                  override fun getCount() = apps.size
+                  override fun getItem(i: Int): Any = apps[i]
+                  override fun getItemId(i: Int) = i.toLong()
+                  override fun getView(i: Int, convertView: View?, parent: ViewGroup?): View {
+                      val a = apps[i]
+                      val cell = (convertView as? LinearLayout) ?: LinearLayout(this@MainActivity).apply {
+                          orientation = LinearLayout.VERTICAL
+                          gravity = Gravity.CENTER_HORIZONTAL
+                          setPadding(0, dp(8), 0, dp(8))
+                          addView(ImageView(context))
+                          addView(
+                              TextView(context).apply {
+                                  setTextColor(Color.WHITE); textSize = 11f; maxLines = 1
+                                  ellipsize = android.text.TextUtils.TruncateAt.END
+                                  gravity = Gravity.CENTER
+                                  setShadowLayer(5f, 0f, 1f, 0x99000000.toInt())
+                                  setPadding(dp(2), dp(5), dp(2), 0)
+                              },
+                              LinearLayout.LayoutParams(MATCH, WRAP)
+                          )
+                      }
+                      val s = dp(cfg.size)
+                      val iv = cell.getChildAt(0) as ImageView
+                      iv.layoutParams = LinearLayout.LayoutParams(s, s)
+                      iv.setImageBitmap(cache.getOrPut(a.pkg) { render(a.icon, s) })
+                      iv.alpha = cfg.alpha / 100f
+                      if (Build.VERSION.SDK_INT >= 31) {
+                          iv.setRenderEffect(
+                              if (cfg.blur > 0) RenderEffect.createBlurEffect(
+                                  cfg.blur.toFloat(), cfg.blur.toFloat(), Shader.TileMode.DECAL
+                              ) else null
+                          )
+                      }
+                      val l = cell.getChildAt(1) as TextView
+                      l.text = a.label
+                      l.visibility = if (cfg.labels) View.VISIBLE else View.GONE
+                      cell.setOnTouchListener { v, e ->
+                          when (e.actionMasked) {
+                              MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(90).start()
+                              MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                                  v.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+                          }
+                          false
+                      }
+                      return cell
+                  }
+              }
+
+              // ───────────────────────── Hintergrund ─────────────────────────
+              private fun decodeWp(u: Uri): Bitmap? {
+                  val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                  contentResolver.openInputStream(u)?.use { BitmapFactory.decodeStream(it, null, o) }
+                  var s = 1
+                  val m = max(o.outWidth, o.outHeight)
+                  while (m / s > 2000) s *= 2
+                  val o2 = BitmapFactory.Options().apply { inSampleSize = s }
+                  return contentResolver.openInputStream(u)?.use { BitmapFactory.decodeStream(it, null, o2) }
+              }
+
+              private fun applyBackground() {
+                  aurora.accent = cfg.accent
+                  aurora.invalidate()
+                  val uri = cfg.wallpaper
+                  if (uri == null) {
+                      wpBitmap = null; wpUri = null
+                  } else if (uri != wpUri) {
+                      try { wpBitmap = decodeWp(Uri.parse(uri)); wpUri = uri } catch (e: Exception) { wpBitmap = null }
+                  }
+                  val ok = wpBitmap != null
+                  if (ok) wpView.setImageBitmap(wpBitmap)
+                  wpView.visibility = if (ok) View.VISIBLE else View.GONE
+                  aurora.visibility = if (ok) View.GONE else View.VISIBLE
+                  if (Build.VERSION.SDK_INT >= 31) {
+                      wpView.setRenderEffect(
+                          if (cfg.bgBlur > 0) RenderEffect.createBlurEffect(
+                              cfg.bgBlur.toFloat(), cfg.bgBlur.toFloat(), Shader.TileMode.CLAMP
+                          ) else null
+                      )
+                  }
+                  dimView.setBackgroundColor((cfg.dim * 255 / 100) shl 24)
+              }
+
+              private fun pickWallpaper() {
+                  val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                      addCategory(Intent.CATEGORY_OPENABLE)
+                      type = "image/*"
+                      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                  }
+                  startActivityForResult(i, 42)
+              }
+
+              // ───────────────────────── UI-Helfer ─────────────────────────
+              private fun tv(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
+                  text = t; textSize = sp; setTextColor(color)
+                  if (bold) typeface = Typeface.DEFAULT_BOLD
+              }
+
+              private fun section(t: String) = tv(t, 12f, cfg.accent, true).apply {
+                  letterSpacing = 0.12f; setPadding(0, dp(22), 0, dp(6))
+              }
+
+              private fun glass(r: Float, pct: Int = cfg.glass) = GradientDrawable().apply {
+                  setColor(argb(pct * 255 / 100, 0xFFFFFF)); cornerRadius = r; setStroke(dp(1), argb(0x40, 0xFFFFFF))
+              }
+
+              private fun pill(t: String, filled: Boolean = false, onClick: () -> Unit) =
+                  tv(t, 14f, Color.WHITE, true).apply {
+                      gravity = Gravity.CENTER
+                      setPadding(dp(18), dp(12), dp(18), dp(12))
+                      background = GradientDrawable().apply {
+                          cornerRadius = dpf(50f)
+                          if (filled) setColor(cfg.accent) else {
+                              setColor(argb(0x22, 0xFFFFFF)); setStroke(dp(1), argb(0x44, 0xFFFFFF))
+                          }
+                      }
+                      setOnClickListener { onClick() }
+                  }
+
+              private fun slider(name: String, lo: Int, hi: Int, cur: Int, unit: String, onChange: (Int) -> Unit): LinearLayout {
+                  val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, dp(2)) }
+                  val head = LinearLayout(this)
+                  val valTv = tv("$cur$unit", 14f, cfg.accent, true)
+                  head.addView(tv(name, 14f, Color.WHITE), LinearLayout.LayoutParams(0, WRAP, 1f))
+                  head.addView(valTv)
+                  val sb = SeekBar(this)
+                  sb.max = hi - lo
+                  sb.progress = cur - lo
+                  sb.progressTintList = ColorStateList.valueOf(cfg.accent)
+                  sb.thumbTintList = ColorStateList.valueOf(cfg.accent)
+                  sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                      override fun onProgressChanged(s: SeekBar?, p: Int, user: Boolean) {
+                          valTv.text = "${p + lo}$unit"
+                          if (user) onChange(p + lo)
+                      }
+                      override fun onStartTrackingTouch(s: SeekBar?) {}
+                      override fun onStopTrackingTouch(s: SeekBar?) {}
+                  })
+                  box.addView(head, MATCH, WRAP)
+                  box.addView(sb, MATCH, WRAP)
+                  box.tag = { v: Int -> sb.progress = v - lo }
+                  return box
+              }
+
+              @Suppress("UNCHECKED_CAST")
+              private fun setSlider(box: LinearLayout, v: Int) { (box.tag as (Int) -> Unit)(v) }
+
+              private fun swatches(cur: Int, colors: IntArray, onPick: (Int) -> Unit): View {
+                  val hs = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+                  val row = LinearLayout(this).apply { setPadding(0, dp(8), 0, dp(8)) }
+                  val dots = ArrayList<Pair<View, Int>>()
+                  fun paint(sel: Int) {
+                      for ((v, c) in dots) {
+                          (v.background as GradientDrawable).setStroke(
+                              dp(if (c == sel) 3 else 1), if (c == sel) Color.WHITE else 0x55FFFFFF
+                          )
+                      }
+                  }
+                  for (c in colors) {
+                      val v = View(this)
+                      v.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c) }
+                      v.setOnClickListener { paint(c); onPick(c) }
+                      dots.add(Pair(v, c))
+                      row.addView(v, LinearLayout.LayoutParams(dp(38), dp(38)).apply { marginEnd = dp(10) })
+                  }
+                  paint(cur)
+                  hs.addView(row)
+                  return hs
+              }
+
+              private fun toggle(name: String, cur: Boolean, onChange: (Boolean) -> Unit): View {
+                  val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(6)) }
+                  row.addView(tv(name, 14f, Color.WHITE), LinearLayout.LayoutParams(0, WRAP, 1f))
+                  val sw = Switch(this)
+                  sw.isChecked = cur
+                  val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+                  sw.thumbTintList = ColorStateList(states, intArrayOf(cfg.accent, 0xFFBBBBBB.toInt()))
+                  sw.trackTintList = ColorStateList(states, intArrayOf(argb(0x88, cfg.accent), 0x55FFFFFF))
+                  sw.setOnCheckedChangeListener { _, v -> onChange(v) }
+                  row.addView(sw)
+                  return row
+              }
+
+              inner class Sheet(title: String) {
+                  val wrap = FrameLayout(this@MainActivity)
+                  val body = LinearLayout(this@MainActivity)
+                  private val panel = LinearLayout(this@MainActivity)
+                  private val scrim = View(this@MainActivity)
+                  private val h = (resources.displayMetrics.heightPixels * 0.82f).toInt()
+
+                  init {
+                      wrap.visibility = View.GONE
+                      scrim.setBackgroundColor(argb(0x99, 0))
+                      scrim.setOnClickListener { hide() }
+                      wrap.addView(scrim, MATCH, MATCH)
+                      panel.orientation = LinearLayout.VERTICAL
+                      panel.background = GradientDrawable().apply {
+                          setColor(argb(0xF4, 0x12121C))
+                          val r = dpf(30f)
+                          cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+                          setStroke(dp(1), argb(0x33, 0xFFFFFF))
+                      }
+                      val head = LinearLayout(this@MainActivity).apply {
+                          gravity = Gravity.CENTER_VERTICAL
+                          setPadding(dp(22), dp(18), dp(10), dp(6))
+                      }
+                      head.addView(tv(title, 22f, Color.WHITE, true), LinearLayout.LayoutParams(0, WRAP, 1f))
+                      head.addView(tv("✕", 20f, W70).apply {
+                          setPadding(dp(14), dp(8), dp(14), dp(8))
+                          setOnClickListener { hide() }
+                      })
+                      panel.addView(head, MATCH, WRAP)
+                      body.orientation = LinearLayout.VERTICAL
+                      body.setPadding(dp(22), dp(4), dp(22), dp(90))
+                      val sv = ScrollView(this@MainActivity).apply {
+                          isVerticalScrollBarEnabled = false
+                          overScrollMode = View.OVER_SCROLL_NEVER
+                      }
+                      sv.addView(body, MATCH, WRAP)
+                      panel.addView(sv, LinearLayout.LayoutParams(MATCH, 0, 1f))
+                      wrap.addView(panel, FrameLayout.LayoutParams(MATCH, h, Gravity.BOTTOM))
+                  }
+
+                  fun show() {
+                      current?.hide(false)
+                      current = this
+                      wrap.visibility = View.VISIBLE
+                      scrim.alpha = 0f
+                      scrim.animate().alpha(1f).setDuration(220).start()
+                      panel.translationY = h.toFloat()
+                      panel.animate().translationY(0f).setDuration(300).setInterpolator(DecelerateInterpolator()).start()
+                  }
+
+                  fun hide(animate: Boolean = true) {
+                      if (current === this) current = null
+                      if (!animate) { wrap.visibility = View.GONE; return }
+                      scrim.animate().alpha(0f).setDuration(180).start()
+                      panel.animate().translationY(h.toFloat()).setDuration(220).withEndAction {
+                          if (current !== this) wrap.visibility = View.GONE
+                      }.start()
+                  }
+              }
+
+              // ───────────────────────── Couture-Widgets ─────────────────────────
+              private fun card(w: Int): LinearLayout = LinearLayout(this).apply {
+                  orientation = LinearLayout.VERTICAL
+                  setPadding(dp(16), dp(14), dp(16), dp(14))
+                  minimumHeight = dp(124)
+                  background = glass(cardR())
+                  layoutParams = LinearLayout.LayoutParams(w, WRAP).apply { marginEnd = dp(10) }
+              }
+
+              private fun bar6(): ProgressBar =
+                  ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                      max = 100
+                      progressTintList = ColorStateList.valueOf(cfg.accent)
+                      progressBackgroundTintList = ColorStateList.valueOf(0x33FFFFFF)
+                  }
+
+              private fun buildWidgets() {
+                  widgetRow.removeAllViews()
+                  batteryTv = null; batteryBar = null; storageTv = null; storageSub = null; storageBar = null
+                  if (cfg.wClock) {
+                      val c = card(dp(176))
+                      c.addView(TextClock(this).apply {
+                          format24Hour = "HH:mm"; format12Hour = "HH:mm"; textSize = 46f
+                          setTextColor(Color.WHITE)
+                          typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL)
+                      })
+                      c.addView(TextClock(this).apply {
+                          format24Hour = "EEE, d. MMM"; format12Hour = "EEE, d. MMM"; textSize = 14f
+                          setTextColor(cfg.accent)
+                      })
+                      widgetRow.addView(c)
+                  }
+                  if (cfg.wBattery) {
+                      val c = card(dp(140))
+                      c.addView(tv("AKKU", 11f, W70, true))
+                      val t = tv("--", 30f, Color.WHITE, true)
+                      batteryTv = t
+                      c.addView(t)
+                      val pb = bar6()
+                      batteryBar = pb
+                      c.addView(pb, LinearLayout.LayoutParams(MATCH, dp(8)).apply { topMargin = dp(12) })
+                      widgetRow.addView(c)
+                  }
+                  if (cfg.wStorage) {
+                      val c = card(dp(150))
+                      c.addView(tv("SPEICHER", 11f, W70, true))
+                      val t = tv("--", 30f, Color.WHITE, true)
+                      storageTv = t
+                      c.addView(t)
+                      val sub = tv("", 12f, W70)
+                      storageSub = sub
+                      c.addView(sub)
+                      val pb = bar6()
+                      storageBar = pb
+                      c.addView(pb, LinearLayout.LayoutParams(MATCH, dp(8)).apply { topMargin = dp(8) })
+                      widgetRow.addView(c)
+                  }
+                  if (cfg.wNote) {
+                      val c = card(dp(200))
+                      c.addView(tv("NOTIZ", 11f, W70, true))
+                      c.addView(tv(cfg.note, 17f, Color.WHITE).apply {
+                          setPadding(0, dp(6), 0, 0); typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+                      })
+                      c.setOnClickListener {
+                          val et = EditText(this).apply {
+                              setText(cfg.note); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                          }
+                          AlertDialog.Builder(this).setTitle("Deine Notiz").setView(et)
+                              .setPositiveButton("Speichern") { _, _ -> cfg.note = et.text.toString(); buildWidgets() }
+                              .setNegativeButton("Abbrechen", null).show()
+                      }
+                      widgetRow.addView(c)
+                  }
+                  widgetRow.visibility = if (widgetRow.childCount == 0) View.GONE else View.VISIBLE
+                  updateStats()
+              }
+
+              private fun updateStats() {
+                  val i = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                  if (i != null) {
+                      val l = i.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
+                      val sc = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+                      val pct = l * 100 / sc
+                      val st = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                      val ch = st == BatteryManager.BATTERY_STATUS_CHARGING || st == BatteryManager.BATTERY_STATUS_FULL
+                      batteryTv?.text = pct.toString() + "%" + (if (ch) " ⚡" else "")
+                      batteryBar?.progress = pct
+                  }
+                  try {
+                      val sf = StatFs(Environment.getDataDirectory().path)
+                      val tot = sf.blockCountLong * sf.blockSizeLong
+                      val free = sf.availableBytes
+                      val used = ((tot - free) * 100 / tot).toInt()
+                      storageTv?.text = "$used%"
+                      storageSub?.text = (free / 1e9).roundToInt().toString() + " GB frei"
+                      storageBar?.progress = used
+                  } catch (e: Exception) { }
+              }
+
+              // ───────────────────────── Design Studio ─────────────────────────
+              private fun openDesign() { buildDesign(); designSheet.show() }
+
+              private fun buildDesign() {
+                  val b = designSheet.body
+                  b.removeAllViews()
+
+                  b.addView(section("PRESETS"))
+                  val pr = LinearLayout(this)
+                  fun preset(name: String, f: () -> Unit) = pr.addView(
+                      pill(name) { f(); applyAll(); buildDesign() },
+                      LinearLayout.LayoutParams(0, WRAP, 1f).apply { marginEnd = dp(6) }
+                  )
+                  preset("Neon") { cfg.radius = 50; cfg.alpha = 100; cfg.tintStrength = 0; cfg.accent = 0xFF22D3EE.toInt(); cfg.glass = 16; cfg.dim = 30 }
+                  preset("Glass") { cfg.radius = 38; cfg.alpha = 88; cfg.glass = 30; cfg.dim = 20; cfg.size = 62 }
+                  preset("Mono") { cfg.radius = 22; cfg.tintColor = Color.WHITE; cfg.tintStrength = 100; cfg.labels = false; cfg.size = 54; cfg.cols = 5 }
+                  b.addView(pr, MATCH, WRAP)
+
+                  b.addView(section("APP-ICONS"))
+                  b.addView(slider("Größe", 36, 96, cfg.size, " dp") { cfg.size = it; refreshIcons() })
+                  b.addView(slider("Rundung", 0, 50, cfg.radius, "%") { cfg.radius = it; refreshIcons(); buildWidgets() })
+                  b.addView(slider("Transparenz (Deckkraft)", 20, 100, cfg.alpha, "%") { cfg.alpha = it; adapter.notifyDataSetChanged() })
+                  b.addView(slider("Blur (Android 12+)", 0, 25, cfg.blur, "") { cfg.blur = it; adapter.notifyDataSetChanged() })
+                  b.addView(slider("Spalten", 3, 6, cfg.cols, "") { cfg.cols = it; refreshIcons() })
+                  b.addView(toggle("App-Namen anzeigen", cfg.labels) { cfg.labels = it; adapter.notifyDataSetChanged() })
+
+                  b.addView(section("ICON-FARBE"))
+                  val tintBox = slider("Farbstärke", 0, 100, cfg.tintStrength, "%") { cfg.tintStrength = it; refreshIcons() }
+                  b.addView(tintBox)
+                  b.addView(swatches(cfg.tintColor, PAL) {
+                      cfg.tintColor = it
+                      if (cfg.tintStrength == 0) { cfg.tintStrength = 70; setSlider(tintBox, 70) }
+                      refreshIcons()
+                  })
+
+                  b.addView(section("HINTERGRUND"))
+                  val r = LinearLayout(this)
+                  r.addView(pill("🖼  Bild wählen", true) { pickWallpaper() }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { marginEnd = dp(8) })
+                  r.addView(pill("Aurora") { cfg.wallpaper = null; applyBackground() }, LinearLayout.LayoutParams(0, WRAP, 1f))
+                  b.addView(r, MATCH, WRAP)
+                  b.addView(slider("Hintergrund-Blur (Android 12+)", 0, 25, cfg.bgBlur, "") { cfg.bgBlur = it; applyBackground() })
+                  b.addView(slider("Abdunkeln", 0, 80, cfg.dim, "%") { cfg.dim = it; applyBackground() })
+
+                  b.addView(section("AKZENTFARBE"))
+                  b.addView(swatches(cfg.accent, PAL) { cfg.accent = it; applyBackground(); buildWidgets() })
+
+                  b.addView(section("COUTURE-WIDGETS"))
+                  b.addView(toggle("Uhr", cfg.wClock) { cfg.wClock = it; buildWidgets() })
+                  b.addView(toggle("Akku", cfg.wBattery) { cfg.wBattery = it; buildWidgets() })
+                  b.addView(toggle("Speicher", cfg.wStorage) { cfg.wStorage = it; buildWidgets() })
+                  b.addView(toggle("Notiz", cfg.wNote) { cfg.wNote = it; buildWidgets() })
+                  b.addView(slider("Glas-Intensität", 5, 60, cfg.glass, "%") { cfg.glass = it; buildWidgets() })
+
+                  b.addView(
+                      pill("Zurücksetzen") {
+                          cfg.sp.edit().clear().apply(); applyAll(); buildDesign()
+                      },
+                      LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(24) }
+                  )
+              }
+
+              // ───────────────────────── Scanner ─────────────────────────
+              private fun openScan() { buildScan(); scanSheet.show() }
+
+              private fun buildScan() {
+                  val b = scanSheet.body
+                  b.removeAllViews()
+                  b.addView(tv("Aura analysiert deine Apps, Icon-Farben und dein Wallpaper und schlägt dir passende Design-Updates vor – mit einem Tipp anwendbar.", 14f, W70).apply {
+                      setPadding(0, dp(8), 0, dp(20))
+                  })
+                  b.addView(pill("🔍  Scan starten", true) { runScan() }, MATCH, WRAP)
+              }
+
+              private fun runScan() {
+                  val b = scanSheet.body
+                  b.removeAllViews()
+                  val st = tv("Starte…", 15f, Color.WHITE, true).apply { setPadding(0, dp(20), 0, dp(10)) }
+                  val pb = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                      max = 100; progressTintList = ColorStateList.valueOf(cfg.accent)
+                  }
+                  b.addView(st)
+                  b.addView(pb, MATCH, dp(8))
+                  Thread {
+                      try {
+                          val res = analyze { p, m -> runOnUiThread { pb.progress = p; st.text = m } }
+                          runOnUiThread { showScan(res) }
+                      } catch (e: Exception) {
+                          runOnUiThread { toast("Scan fehlgeschlagen"); buildScan() }
+                      }
+                  }.start()
+              }
+
+              private fun analyze(report: (Int, String) -> Unit): Scan {
+                  val list = ArrayList(apps)
+                  report(8, "Apps werden gezählt…"); Thread.sleep(350)
+                  val hist = FloatArray(12)
+                  var satSum = 0f
+                  var cnt = 0
+                  report(30, "Icon-Farben werden analysiert…")
+                  val px = IntArray(16 * 16)
+                  for (a in list) {
+                      val bm = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+                      val d = (a.icon.constantState?.newDrawable() ?: a.icon).mutate()
+                      d.setBounds(0, 0, 16, 16)
+                      d.draw(Canvas(bm))
+                      bm.getPixels(px, 0, 16, 0, 0, 16, 16)
+                      var r = 0L; var g = 0L; var bl = 0L; var n = 0
+                      for (p in px) {
+                          if (Color.alpha(p) > 200) { r += Color.red(p); g += Color.green(p); bl += Color.blue(p); n++ }
+                      }
+                      if (n == 0) continue
+                      val hsv = FloatArray(3)
+                      Color.RGBToHSV((r / n).toInt(), (g / n).toInt(), (bl / n).toInt(), hsv)
+                      satSum += hsv[1]; cnt++
+                      if (hsv[1] > 0.3f && hsv[2] > 0.25f) hist[(hsv[0] / 30f).toInt().coerceIn(0, 11)] += 1f
+                  }
+                  val sat = if (cnt > 0) satSum / cnt else 0f
+                  val spread = hist.count { it > cnt * 0.07f }
+                  var best = 0
+                  for (i in 1 until 12) if (hist[i] > hist[best]) best = i
+                  val domColor = if (hist[best] > 0f) Color.HSVToColor(floatArrayOf(best * 30f + 15f, 0.75f, 1f)) else cfg.accent
+                  val names = listOf("Rot", "Orange", "Gelb", "Limette", "Grün", "Mint", "Cyan", "Himmelblau", "Blau", "Violett", "Magenta", "Pink")
+                  val domName = names[best]
+
+                  report(55, "Wallpaper wird vermessen…"); Thread.sleep(350)
+                  var luma = 0.12f
+                  var busy = 0.12f
+                  val wb = wpBitmap
+                  if (wb != null) {
+                      val sm = Bitmap.createScaledBitmap(wb, 24, 24, true)
+                      val ps = IntArray(24 * 24)
+                      sm.getPixels(ps, 0, 24, 0, 0, 24, 24)
+                      val ls = ps.map { (0.2126f * Color.red(it) + 0.7152f * Color.green(it) + 0.0722f * Color.blue(it)) / 255f }
+                      luma = ls.average().toFloat()
+                      val mean = luma
+                      busy = sqrt(ls.map { (it - mean) * (it - mean) }.average()).toFloat()
+                  }
+
+                  report(78, "Widgets & Layout werden geprüft…"); Thread.sleep(350)
+                  val n = list.size
+                  val anyWidget = cfg.wClock || cfg.wBattery || cfg.wStorage || cfg.wNote
+                  val harmony = if (cfg.tintStrength >= 60) 1f else (1f - (spread - 1).coerceAtLeast(0) / 6f).coerceIn(0f, 1f)
+                  var score = (40 * harmony).toInt()
+                  score += if (cfg.radius in 22..42) 15 else 6
+                  score += if (cfg.size in 48..72) 15 else 6
+                  score += if (anyWidget) 10 else 0
+                  score += if (busy < 0.2f || cfg.dim >= 20 || cfg.bgBlur >= 6) 10 else 4
+                  score += if ((n > 40 && cfg.cols >= 5) || n <= 40) 10 else 4
+
+                  val sugs = ArrayList<Sug>()
+                  fun add(e: String, t: String, d: String, a: () -> Unit) { sugs.add(Sug(e, t, d, a)) }
+
+                  if (spread >= 5 && sat > 0.3f && cfg.tintStrength < 50) {
+                      add("🎨", "Farbchaos beruhigen", "Deine Icons mischen $spread Farbwelten. Ein einheitlicher $domName-Look wirkt deutlich hochwertiger.") {
+                          cfg.tintColor = domColor; cfg.tintStrength = 75; cfg.accent = domColor
+                      }
+                  } else if (sat < 0.22f && cfg.tintStrength < 20) {
+                      add("✨", "Mehr Farbe ins Spiel", "Deine Icons wirken blass. Ein sanfter Akzent-Ton bringt Tiefe, ohne zu überladen.") {
+                          cfg.tintColor = cfg.accent; cfg.tintStrength = 40
+                      }
+                  }
+                  if (n > 45 && (cfg.size > 58 || cfg.cols < 5)) {
+                      add("📐", "Dichteres Raster", "Bei $n Apps passen 5 Spalten mit kleineren Icons besser – weniger Scrollen, ruhigeres Bild.") {
+                          cfg.size = 54; cfg.cols = 5
+                      }
+                  } else if (n in 1..24 && cfg.size < 68) {
+                      add("🔎", "Größere Icons", "Du hast nur $n Apps – große Icons nutzen den Platz besser und sehen edler aus.") {
+                          cfg.size = 74; cfg.cols = 4
+                      }
+                  }
+                  if (cfg.radius !in 26..42) {
+                      add("🟦", "Squircle-Form", "Eine Rundung um 36 % ist der moderne Mittelweg zwischen Quadrat und Kreis.") { cfg.radius = 36 }
+                  }
+                  if (luma > 0.6f && cfg.dim < 25) {
+                      add("🌗", "Wallpaper abdunkeln", "Dein Hintergrund ist sehr hell – Labels und Widgets sind schwer lesbar. Etwas Abdunklung hilft.") { cfg.dim = 35 }
+                  }
+                  if (wb != null && busy > 0.22f && cfg.bgBlur < 6) {
+                      add("🌫", "Unruhiges Wallpaper beruhigen", "Viele Details hinter den Icons stören. Leichter Blur (ab Android 12) schafft Fokus.") {
+                          cfg.bgBlur = 8; cfg.dim = max(cfg.dim, 25)
+                      }
+                  }
+                  if (luma < 0.35f && cfg.glass < 18) {
+                      add("🧊", "Frosted-Glass-Widgets", "Auf dunklem Hintergrund wirken Widgets mit mehr Glas-Anteil deutlich edler.") { cfg.glass = 26 }
+                  }
+                  if (!anyWidget) {
+                      add("🧩", "Couture-Widgets aktivieren", "Uhr und Akku-Karte geben dem Homescreen Struktur und Funktion.") {
+                          cfg.wClock = true; cfg.wBattery = true
+                      }
+                  }
+                  if (sugs.isEmpty()) {
+                      sugs.add(Sug("🔥", "Dein Setup sitzt", "Farben, Größen und Hintergrund passen zusammen. Probier trotzdem mal ein Preset im Design Studio.", null))
+                  }
+                  report(100, "Vorschläge werden berechnet…"); Thread.sleep(300)
+                  return Scan(n, sat, spread, luma, score.coerceIn(0, 100), sugs)
+              }
+
+              private fun showScan(s: Scan) {
+                  val b = scanSheet.body
+                  b.removeAllViews()
+                  val top = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+                  val big = tv("0", 64f, Color.WHITE, true)
+                  top.addView(big)
+                  top.addView(tv("/100\nDesign-Score", 14f, W70).apply { setPadding(dp(10), 0, 0, 0) })
+                  ValueAnimator.ofInt(0, s.score).apply {
+                      duration = 900
+                      addUpdateListener { big.text = (it.animatedValue as Int).toString() }
+                  }.start()
+                  b.addView(top)
+                  val tone = if (s.luma > 0.5f) "hell" else "dunkel"
+                  b.addView(tv("📱 ${s.apps} Apps  ·  🎨 ${(s.sat * 100).roundToInt()}% Sättigung  ·  🌈 ${s.spread} Farbwelten  ·  🖼 Wallpaper $tone", 12f, W70))
+                  b.addView(section("VORSCHLÄGE"))
+                  for (g in s.sugs) {
+                      val c = LinearLayout(this).apply {
+                          orientation = LinearLayout.VERTICAL
+                          setPadding(dp(16), dp(14), dp(16), dp(14))
+                          background = glass(dpf(20f), 10)
+                      }
+                      c.addView(tv(g.emoji + "  " + g.title, 16f, Color.WHITE, true))
+                      c.addView(tv(g.desc, 13f, W70).apply { setPadding(0, dp(4), 0, dp(10)) })
+                      val act = g.action
+                      if (act != null) {
+                          val btn = pill("Anwenden", true) { }
+                          btn.setOnClickListener {
+                              act(); applyAll()
+                              btn.text = "✓  Angewendet"; btn.alpha = 0.6f
+                          }
+                          c.addView(btn, MATCH, WRAP)
+                      }
+                      b.addView(c, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
+                  }
+                  b.addView(
+                      pill("⚡  Alle anwenden", true) {
+                          for (g in s.sugs) g.action?.invoke()
+                          applyAll(); toast("Alles angewendet ✨"); buildScan()
+                      },
+                      LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) }
+                  )
+                  b.addView(
+                      pill("Neu scannen") { runScan() },
+                      LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) }
+                  )
+              }
+
+              // ───────────────────────── Quick Controls ─────────────────────────
+              private fun openQuick() { buildQuick(); quickSheet.show() }
+
+              private fun tileBg(active: Boolean) = GradientDrawable().apply {
+                  cornerRadius = cardR()
+                  if (active) setColor(cfg.accent) else setColor(argb(0x1F, 0xFFFFFF))
+                  setStroke(dp(1), argb(0x33, 0xFFFFFF))
+              }
+
+              private fun go(action: String) {
+                  try {
+                      startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                  } catch (e: Exception) {
+                      try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch (e2: Exception) { }
+                  }
+              }
+
+              private fun toggleTorch(v: View) {
+                  try {
+                      val cm = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                      val id = cm.cameraIdList.firstOrNull {
+                          cm.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                      }
+                      if (id == null) { toast("Kein Blitz gefunden"); return }
+                      torchOn = !torchOn
+                      cm.setTorchMode(id, torchOn)
+                      v.background = tileBg(torchOn)
+                  } catch (e: Exception) { toast("Taschenlampe nicht verfügbar") }
+              }
+
+              private fun buildQuick() {
+                  val b = quickSheet.body
+                  b.removeAllViews()
+                  b.addView(tv("Die Kacheln folgen deiner Icon-Rundung und Akzentfarbe.", 12f, W50).apply { setPadding(0, 0, 0, dp(8)) })
+                  val tiles = listOf(
+                      Tile("📶", "WLAN") { go(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) },
+                      Tile("🔵", "Bluetooth") { go(Settings.ACTION_BLUETOOTH_SETTINGS) },
+                      Tile("🔊", "Lautstärke") { go(Settings.Panel.ACTION_VOLUME) },
+                      Tile("☀️", "Helligkeit") { go(Settings.ACTION_DISPLAY_SETTINGS) },
+                      Tile("🔦", "Taschenlampe") { toggleTorch(it) },
+                      Tile("✈️", "Flugmodus") { go(Settings.ACTION_AIRPLANE_MODE_SETTINGS) },
+                      Tile("🔋", "Akku") { go(Intent.ACTION_POWER_USAGE_SUMMARY) },
+                      Tile("🏠", "Standard-Launcher") { go(Settings.ACTION_HOME_SETTINGS) },
+                      Tile("🎨", "Design Studio") { openDesign() },
+                      Tile("◎", "Aura Scan") { openScan() }
+                  )
+                  for (row in tiles.chunked(2)) {
+                      val r = LinearLayout(this)
+                      for (t in row) {
+                          val v = LinearLayout(this).apply {
+                              orientation = LinearLayout.VERTICAL
+                              gravity = Gravity.CENTER_VERTICAL
+                              setPadding(dp(16), dp(14), dp(16), dp(14))
+                              background = tileBg(t.n == "Taschenlampe" && torchOn)
+                          }
+                          v.addView(tv(t.e, 26f, Color.WHITE))
+                          v.addView(tv(t.n, 14f, Color.WHITE, true).apply { setPadding(0, dp(6), 0, 0) })
+                          v.setOnClickListener { t.f(v) }
+                          r.addView(v, LinearLayout.LayoutParams(0, dp(92), 1f).apply { setMargins(dp(5), dp(5), dp(5), dp(5)) })
+                      }
+                      b.addView(r, MATCH, WRAP)
+                  }
+              }
+          }
+          EOF
+
+      - name: APK bauen
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuraLauncher-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
